@@ -41,6 +41,51 @@ Run ``pe2macbinary.py <path-to-EXE> <output-file.bin>`` to convert the PE to a M
 * Add ``--name`` to set the file name to use when the MacBinary file is unpacked
 * Add ``--data`` to use another file as the data fork
 
+### Packaging Windows and Macintosh binaries into a single file
+
+If you are building your application for Windows and Macintosh systems, you might want to package both versions together into a single file for easier distribution. One way to do this is using an ISO image. A hybrid ISO contains a standard ISO9660 filesystem and a Macintosh HFS filesystem. The mkisofs/genisoimage tools support generating a hybrid ISO from a directory of MacBinary files.
+
+First, we need to generate a MacBinary file containing both versions of the program. Use pe2macbinary to convert the Macintosh executable as above but add the ``--data`` option to set the data fork to the Windows executable. Set the output filename to the executable name for Windows (ie. include the .EXE extension). The filename for the Macintosh can be set with the ``--name`` option.
+
+Then, use genisoimage/mkisofs to generate the ISO. The important options are ``-hfs`` which creates a hybrid HFS/ISO9660 image and ``--macbin`` which indicates that the source files are in MacBinary format.
+
+Here is an example script that uses nmake to build the Windows and Macintosh versions of a program and packages them as an ISO image:
+
+```
+@echo off
+
+rmdir /s /q Release
+rmdir /s /q MacRel
+
+set OLDPATH=%PATH%
+set OLDLIB=%LIB%
+set OLDINCLUDE=%INCLUDE%
+
+call c:\msdev\bin\VCVARS32.BAT x86
+echo Building Windows Release
+nmake /f MyProgram.mak CFG="MyProgram - Win32 Release"
+
+set PATH=%OLDPATH%
+set LIB=%OLDLIB%
+set INCLUDE=%OLDINCLUDE%
+
+call c:\msdev\bin\VCVARS32.BAT m68k
+echo Building Macintosh Release
+nmake /f MyProgram.mak CFG="MyProgram - Macintosh Release"
+
+set PATH=%OLDPATH%
+set LIB=%OLDLIB%
+set INCLUDE=%OLDINCLUDE%
+
+echo Building release ISO
+rmdir /s /q Release\ISO
+mkdir Release\ISO
+py -3 pe2macbinary.py --name "MyProgram" --data Release\MyProgram.exe MacRel\MyProgram.exe Release\ISO\MyProgram.exe
+
+mkisofs -o MyProgram.iso -hfs -J -V "MyProgram" --macbin Release\ISO
+
+```
+
 ## File2MacBinary
 
 File2MacBinary creates a MacBinary file from a data and resource fork. Sample usage:
